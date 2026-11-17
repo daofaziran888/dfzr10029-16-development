@@ -59,7 +59,7 @@ npm run dev
 | 数据API发布 | `data_service` | 数据服务 | 服务编号、服务名称、输出数据集 |
 | 智能告警 | `alert` | 告警规则 | 规则编号、告警名称、监控指标 |
 | 分析用户组 | `user_group` | 用户组 | 组编号、组名称、组描述 |
-| 数据快照 | `snapshot` | 快照记录 | 快照编号、数据集名称、快照时间 |
+| 数据快照 | `snapshot` | 快照记录、可恢复清单、恢复依据包 | 快照编号、数据集名称、快照时间、校验哈希 |
 | 任务调度 | `scheduler` | 调度任务 | 任务编号、任务名称、调度类型 |
 | 缓存管理 | `cache` | 缓存配置 | 缓存编号、缓存目标、缓存策略 |
 | 分析管道 | `pipeline` | 分析节点 | 节点编号、输入数据集、分析算子 |
@@ -67,6 +67,30 @@ npm run dev
 | 数据集市 | `data_mart` | 集市表 | 表编号、表名称、主题域 |
 | 数据导出 | `export` | 导出任务 | 任务编号、导出对象、导出格式 |
 | 数据审计 | `audit` | 审计记录 | 记录编号、操作类型、操作人 |
+
+## 数据快照：可恢复清单与恢复依据包
+
+快照页在作业时间线之外，还提供三块能力，接口都挂在 `/api/snapshot` 下：
+
+- **可恢复快照清单**：`GET /api/snapshot/recoverable` 按数据集分组，支持 `dataset`、
+  `verification`、`date_from`、`date_to`、`only_recoverable` 过滤，返回 `items`、`groups`、
+  `summary`、`datasets`、`selection`。清单每行绑定一份快照记录，用记录指纹判断是否过期；
+  快照记录被改写后旧行不再展示（`include_stale=true` 可查看）。`GET /recoverable/export`
+  导出 CSV，每行末尾带「筛选依据」，保留这份文件是按什么条件选出来的。
+- **快照恢复依据包**：`POST /{id}/verify` 解析校验哈希并把处理输入按版本持久化，
+  `GET /{id}/basis` 回查（可带 `version`、`source`），返回 `overview`（当前版本与差异摘要）、
+  `detail`（处理输入与逐字段差异）；`GET /{id}/basis/versions` 列出全部版本。
+  数据审计 `GET /api/audit/snapshot-basis`、数据导出 `GET /api/export/snapshot-basis`
+  只读同一份依据包，用于跨领域核对版本。
+- **恢复入口**：`POST /{id}/recover` 只接受已确认版本里的校验哈希，依据包过期或确认版本
+  为不可恢复时直接拒绝；受理记录可通过 `GET /{id}/recovery-requests` 回查。
+
+快照目录检查点（`GET/POST /api/snapshot/checkpoints`）用来承接清理完成通知和恢复请求。
+两个事件并发落到同一检查点时，先到者成为唯一确认版本，后到者以「已驳回」版本留痕，
+不会覆盖确认结果；检查点确认后再按版次生成恢复依据包，因此冲突条件下仍保留版本边界。
+
+校验哈希口径统一在 `backend/app/services/snapshot_manifest.py`：按
+「快照编号 | 数据集名称 | 快照时间 | 行数快照 | 存储位置」拼清单文本取 `sha256:`。
 
 ## 约定
 

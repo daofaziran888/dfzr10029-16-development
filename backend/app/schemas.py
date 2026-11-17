@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 T = TypeVar("T")
 
@@ -32,6 +32,38 @@ class ActionPayload(BaseModel):
     """状态动作使用独立契约，避免与登记的 values 载荷混用。"""
 
     action: str
+    remark: str | None = None
+
+
+class VerifyPayload(BaseModel):
+    """快照校验：可顺带登记校验哈希，来源用于依据包按版本回查。"""
+
+    checksum: str | None = None
+    source: str = "校验接口"
+    remark: str | None = None
+
+
+class RecoveryPayload(BaseModel):
+    """恢复请求：只允许使用已确认版本里的校验哈希。"""
+
+    operator: str = "值班管理员"
+    remark: str | None = None
+
+
+class CheckpointPayload(BaseModel):
+    """登记快照目录检查点；同时接受蛇形和驼峰写法，避免调用方两头猜。"""
+
+    checkpoint_no: str | None = Field(default=None, validation_alias=AliasChoices("checkpoint_no", "checkpointNo"))
+    snapshot_id: int | None = Field(default=None, validation_alias=AliasChoices("snapshot_id", "snapshotId"))
+    snapshot_no: str | None = Field(default=None, validation_alias=AliasChoices("snapshot_no", "snapshotNo"))
+    snapshot_dir: str | None = Field(default=None, validation_alias=AliasChoices("snapshot_dir", "snapshotDir"))
+
+
+class CheckpointEventPayload(BaseModel):
+    """检查点事件：清理完成通知或恢复请求。"""
+
+    event: str
+    operator: str = "值班管理员"
     remark: str | None = None
 
 

@@ -8,6 +8,15 @@ from typing import Any
 
 from app.seed import SEED_ROWS
 
+# 恢复依据包、可恢复清单、检查点是快照模块的派生表，不在运营概览里单独算业务模块。
+AUXILIARY_TABLES = {
+    "snapshot_recovery_basis",
+    "snapshot_recoverable",
+    "snapshot_checkpoint",
+    "snapshot_checkpoint_event",
+    "snapshot_recovery_request",
+}
+
 
 class Store:
     def __init__(self) -> None:
@@ -17,6 +26,9 @@ class Store:
 
     def module_names(self) -> list[str]:
         return sorted(self._tables)
+
+    def business_module_names(self) -> list[str]:
+        return [name for name in self.module_names() if name not in AUXILIARY_TABLES]
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])
@@ -29,7 +41,7 @@ class Store:
 
     def overview(self) -> dict[str, object]:
         modules: list[dict[str, object]] = []
-        for name in self.module_names():
+        for name in self.business_module_names():
             rows = self.rows(name)
             modules.append({
                 "name": name,

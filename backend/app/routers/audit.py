@@ -65,6 +65,35 @@ def export_entries(
         headers={"Content-Disposition": 'attachment; filename="audit.csv"'})
 
 
+@router.get("/snapshot-basis")
+def list_snapshot_basis(
+    snapshot_id: int | None = Query(default=None),
+    source: str | None = Query(default=None),
+) -> dict[str, object]:
+    """跨领域只读视图：数据审计按版本读取快照恢复依据包，核对校验结果与可恢复状态。"""
+    from app.services.snapshot_recovery import recovery_service
+
+    payload = recovery_service.list_basis(snapshot_id=snapshot_id, source=source)
+    items = [
+        {
+            "依据包编号": item.get("id"),
+            "快照记录id": item.get("快照记录id"),
+            "快照编号": item.get("快照编号"),
+            "数据集名称": item.get("数据集名称"),
+            "版本": item.get("版本"),
+            "来源": item.get("来源"),
+            "状态": item.get("状态"),
+            "校验结果": item.get("校验结果"),
+            "可恢复状态": item.get("可恢复状态"),
+            "确认校验哈希": item.get("确认校验哈希"),
+            "创建时间": item.get("创建时间"),
+            "检查点编号": item.get("检查点编号"),
+        }
+        for item in payload["items"]
+    ]
+    return {"items": items, "total": len(items), "sources": payload["sources"], "module": "audit"}
+
+
 @router.get("/{entry_id}", response_model=dict)
 def get_entry(entry_id: int) -> dict:
     """读取单条审计记录明细；不存在时给出可读的错误说明。"""
